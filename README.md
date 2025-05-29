@@ -1,159 +1,145 @@
-[![Schematic of the PCR simulator software used in this study. The... | Download Scientific Diagram](https://tse1.mm.bing.net/th/id/OIP.y74EJCheKIsrnK0qNklQ6QHaG1?pid=Api)](https://www.researchgate.net/figure/Schematic-of-the-PCR-simulator-software-used-in-this-study-The-software-includes-adding_fig3_283804088)
 
-Certainly! Here's a comprehensive and visually engaging `README.md` file tailored for your **In Silico PCR** project. This README is designed to provide clear guidance to users and contributors, enhancing the accessibility and appeal of your GitHub repository.
 
----
+````markdown
+# 🔬 In Silico PCR Tool (R Package)
 
-# 🧬 In Silico PCR Tool
+![logo](inst/www/logo.png)
 
-**Simulate PCR Amplification with Precision and Ease**
+## 📌 Overview
 
-![In Silico PCR Banner](https://github.com/ocheab/In-silico-PCR/blob/main/assets/banner.png)
+**In Silico PCR Tool** is an R-based Shiny application designed for molecular biologists, clinical scientists, and researchers. This tool simulates PCR amplification in silico using uploaded or manually entered primers and DNA sequences. It allows users to evaluate primer binding specificity, detect potential amplicons, and download predicted PCR products—all before synthesis!
 
----
-
-## 📖 Overview
-
-The **In Silico PCR Tool** is a user-friendly Shiny application developed by the [Centre for Malaria and Other Tropical Diseases Care, UITH, Ilorin, Nigeria](https://www.uithilorin.org.ng/). It enables researchers to simulate PCR amplification processes computationally, facilitating:
-
-* **Primer Binding Analysis**: Evaluate the binding efficiency of primers to target DNA sequences.
-* **Product Size Prediction**: Determine the expected sizes of PCR products.
-* **Specificity Assessment**: Analyze the specificity of primer pairs to minimize off-target effects.
-* **Result Exportation**: Download simulation results in CSV and FASTA formats for further analysis.
+> ✅ Developed by the [Centre for Malaria and Other Tropical Diseases Care](https://cemtrod.org), University of Ilorin Teaching Hospital (UITH), Nigeria.
 
 ---
 
-## 🚀 Features
+## 🎯 Features
 
-* **Multiple Input Options**: Upload multiple FASTA files and primer CSV files or manually input primer sequences.
-* **Customizable Parameters**: Set mismatch tolerances and define product size ranges to tailor simulations.
-* **Interactive Results Table**: View and filter predicted amplification results with ease.
-* **Downloadable Outputs**: Export selected results in CSV and FASTA formats.
-* **Responsive UI**: Enjoy a clean and intuitive interface with real-time feedback using `shinybusy`.
+- 🧬 **Simulate PCR reactions** on uploaded FASTA sequences
+- 📎 **Manually or batch-upload primer pairs**
+- 🎯 Filter results by mismatch tolerance and product size
+- 📊 Interactive tables to explore amplification results
+- 📥 Download predicted amplicons in FASTA or CSV format
+- ⚙️ Built as an installable R package (not web-based)
 
 ---
 
-## 🖥️ Screenshots
+## 📸 Interface Snapshots
 
 ### 🏠 Home Page
+![Home](inst/www/pcr.jpg)
 
-![Home Page](https://github.com/ocheab/In-silico-PCR/blob/main/assets/home_page.png)
-
-*Welcome screen introducing the tool and its capabilities.*
-
-### 🧪 Run Simulation
-
-![Run Simulation](https://github.com/ocheab/In-silico-PCR/blob/main/assets/run_simulation.png)
-
-*Interface for uploading files, setting parameters, and initiating simulations.*
+### 🧪 Run Simulation Tab
+![Simulation](inst/www/simulation_screenshot.png)
 
 ### 📊 Results Table
-
-![Results Table](https://github.com/ocheab/In-silico-PCR/blob/main/assets/results_table.png)
-
-*Interactive table displaying predicted amplification results.*
+![Results](inst/app/www/results_table.png)
 
 ---
 
-## 🛠️ Installation
+## 🚀 Installation
 
-To run the **In Silico PCR Tool** locally, follow these steps:
+You can install the development version of this package directly from GitHub:
 
-1. **Clone the Repository**
-
-   ```bash
-   git clone https://github.com/ocheab/In-silico-PCR.git
-   cd In-silico-PCR
-   ```
-
-2. **Install Required Packages**
-
-   Ensure you have R installed. Then, install the necessary R packages:
-
-   ```r
-   install.packages(c("shiny", "shinybusy", "shinythemes", "Biostrings", "DT", "shinyWidgets", "readr"))
-   ```
-
-3. **Run the Application**
-
-   ```r
-   shiny::runApp()
-   ```
-
-   The application will launch in your default web browser.
+```r
+# install.packages("devtools") # if not already installed
+devtools::install_github("ocheab/In-silico-PCR")
+````
 
 ---
 
-## 📂 Project Structure
+## ▶️ Launch the App
 
-```
-In-silico-PCR/
-├── R/                      # R scripts and functions
-├── inst/
-│   └── www/                # Static resources (images, CSS)
-├── man/                    # Documentation files
-├── rsconnect/              # Deployment configurations
-├── app.R                   # Main Shiny application script
-├── DESCRIPTION             # Package metadata
-├── LICENSE                 # License information
-├── NAMESPACE               # R namespace declarations
-├── README.md               # Project README
+After installing the package, launch the app with:
+
+```r
+library(InSilicoPCR)
+run_app()
 ```
 
 ---
 
-## 🤝 Contributing
+## 📁 File Requirements
 
-We welcome contributions from the community! To contribute:
+### 1. DNA Sequences
 
-1. **Fork the Repository**
+Upload one or more files in **FASTA** format. Each file can contain multiple sequences.
 
-   Click the "Fork" button at the top right of the repository page.
+### 2. Primer CSV (Optional)
 
-2. **Create a New Branch**
+You may upload a CSV file with two columns: `Forward` and `Reverse`.
 
-   ```bash
-   git checkout -b feature/YourFeatureName
-   ```
+```csv
+Forward,Reverse
+ATGCGTACTA,GGTAGTCGTA
+CTTGCATGGC,AACGTCAGTT
+```
 
-3. **Commit Your Changes**
+---
 
-   ```bash
-   git commit -m "Add your feature"
-   ```
+## ⚙️ Functional Highlights
 
-4. **Push to Your Fork**
+| Functionality         | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `run_app()`           | Launches the Shiny interface                 |
+| Input: `fasta_upload` | Upload one or more FASTA files               |
+| Input: `primer_csv`   | Optional CSV for bulk primer entry           |
+| Input: Manual Entry   | Add primer pairs by hand                     |
+| Filtering Controls    | Max mismatch, min/max product size           |
+| Output Table          | View forward/reverse primer positions, sizes |
+| Downloads             | Get FASTA or CSV of filtered products        |
 
-   ```bash
-   git push origin feature/YourFeatureName
-   ```
+---
 
-5. **Submit a Pull Request**
+## 📘 Example Use Case
 
-   Navigate to your forked repository on GitHub and click "New Pull Request".
+Researchers validating primer pairs for *Plasmodium knowlesi* 18S rRNA gene can:
+
+1. Upload `.fasta` sequences from *Plasmodium* genome
+2. Provide candidate primers
+3. Run the tool to ensure:
+
+   * Amplicons are within desired product size range
+   * Binding occurs with high specificity
+   * No off-target amplifications are found
+4. Download selected amplicons for lab validation
+
+---
+
+## 🧪 For Lab Use
+
+This app is ideal for:
+
+* Primer validation before synthesis
+* Diagnostic kit development
+* Molecular diagnostics training
+* High-throughput screening of primer performance
+
+---
+
+## 🤝 Acknowledgments
+
+Developed at the **Centre for Malaria and Other Tropical Diseases Care**, UITH, Nigeria.
+
+For technical assistance: **[cemtrod.ilorin@gmail.com](mailto:cemtrod.ilorin@gmail.com)**
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/ocheab/In-silico-PCR/blob/main/LICENSE) file for details.
+This package is open-source and distributed under the MIT License.
 
 ---
 
-## 📬 Contact
+## 📌 Citation
 
-For questions, suggestions, or collaboration inquiries, please contact:
+If you use this tool in your work, please cite:
 
-📧 [cemtrod.ilorin@gmail.com](mailto:cemtrod.ilorin@gmail.com)
+```
+George Oche, A., (2025). In Silico PCR Tool. Centre for Malaria and Other Tropical Diseases Care, UITH.
+https://github.com/ocheab/In-silico-PCR
+```
 
----
-
-## 🌐 Acknowledgments
-
-Developed by the [Centre for Malaria and Other Tropical Diseases Care, UITH, Ilorin, Nigeria](https://www.uithilorin.org.ng/), with the aim of advancing malaria research through computational tools.
-
----
-
-*Empowering researchers with efficient and accurate PCR simulation capabilities.*
+```
 
 ---
