@@ -1,0 +1,10 @@
+name: in_silico_pcr
+title:
+username: cemtrod-ilorin
+account: cemtrod-ilorin
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14822783
+bundleId: 10340707
+url: https://cemtrod-ilorin.shinyapps.io/in_silico_pcr/
+version: 1
