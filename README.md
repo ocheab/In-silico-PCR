@@ -51,7 +51,7 @@ devtools::install_github("ocheab/In-silico-PCR")
 After installing the package, launch the app with:
 
 ```r
-library(InSilicoPCR)
+library(inSilicoPCR)
 run_app()
 ```
 
