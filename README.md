@@ -1,6 +1,4 @@
----
 
-````markdown
 # 🔬 In Silico PCR Tool (R Package)
 
 ![logo](inst/www/logo.png)
