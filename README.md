@@ -52,7 +52,7 @@ After installing the package, launch the app with:
 
 ```r
 library(inSilicoPCR)
-run_app()
+inSilicoPCR::run_app()
 ```
 
 ---
