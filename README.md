@@ -1,7 +1,7 @@
 
 # 🔬 In Silico PCR Tool (R Package)
 
-![logo](inst/www/logo.png)
+![logo](inst/www/pcr.png)
 
 ## 📌 Overview
 
