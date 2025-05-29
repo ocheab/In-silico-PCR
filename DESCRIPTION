@@ -1,0 +1,25 @@
+Package: inSilicoPCR
+Title: PCR Simulation
+Version: 0.1.0
+Authors@R: person(given = "Oche", 
+                  family = "George", 
+                  email = "cemtrod.ilorin@gmail.com", 
+                  role = c("aut", "cre"))
+Description: This application simulates PCR amplification in silico using uploaded or manually entered DNA sequences and primer pairs.
+ It supports multiple FASTA uploads, mismatch tolerance, product size filtering, and allows export of filtered results in CSV and FASTA formats. Developed by the Centre for Malaria and Other Tropical Diseases Care, University of Ilorin Teaching Hospital.
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 4.1.0),
+    shiny,
+    shinythemes,
+    shinybusy,
+    shinyWidgets,
+    DT,
+    Biostrings,
+    readr
+Suggests:
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
