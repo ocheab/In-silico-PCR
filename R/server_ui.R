@@ -7,6 +7,7 @@ library(Biostrings)
 library(DT)
 library(shinyWidgets)
 library(readr)
+library(XML)
 
 ui <- navbarPage(
   title = div(
