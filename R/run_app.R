@@ -5,5 +5,6 @@
 #'
 #' @export
 run_app <- function() {
+  addResourcePath("www", system.file("www", package = "inSilicoPCR"))
   shiny::shinyApp(ui = ui, server = server)
 }
