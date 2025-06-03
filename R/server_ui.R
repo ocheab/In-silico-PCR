@@ -46,7 +46,16 @@ ui <- navbarPage(
           box-shadow: 0 2px 5px rgba(0,0,0,0.1);
           display: inline-block;
         }
-      "))
+      ")),
+        tags$script(HTML("
+  Shiny.addCustomMessageHandler('bindBlastButtons', function(message) {
+    setTimeout(function() {
+      $('.blast-btn').off('click').on('click', function() {
+        Shiny.setInputValue('blast_row', this.id, {priority: 'event'});
+      });
+    }, 500);
+  });
+"))
              ),
              
              div(class = "home-container",
@@ -102,8 +111,20 @@ ui <- navbarPage(
                tags$li("Use the table filters to find specific or best primer-product matches.")
              ),
              tags$hr(),
-             p("For technical support, contact: cemtrod.ilorin@gmail.com")
-           )
+             p("For technical support, contact: cemtrod.ilorin@gmail.com"),
+             tags$style(HTML("
+  .dataTables_wrapper .dataTables_paginate .paginate_button {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    margin: 2px;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: #007bff;
+    color: white !important;
+  }
+"))
+             
+     )
   )
 )
 
@@ -239,12 +260,21 @@ server <- function(input, output, session) {
       results(final_result)
       
       output$pcr_results <- renderDT({
-        datatable(final_result, options = list(pageLength = 10),
-                  filter = "top", selection = "multiple") %>%
-          formatStyle("Specific",
-                      target = "row",
-                      backgroundColor = styleEqual("Yes", "#d4edda"))
+        df <- results()
+        df$BLAST <- paste0(
+          "<button class='btn btn-sm btn-primary blast-btn' id='blast_",
+          1:nrow(df), "'>BLAST</button>"
+        )
+        datatable(df, escape = FALSE, selection = 'multiple', options = list(pageLength = 10)) %>%
+          formatStyle("Specific", backgroundColor = styleEqual("Yes", "#d4edda"))
       })
+      
+      # ⬇️ Add this right after rendering
+      observe({
+        req(results())
+        session$sendCustomMessage("bindBlastButtons", list())
+      })
+      
     }
     
     remove_modal_spinner()
@@ -257,7 +287,266 @@ server <- function(input, output, session) {
       })), collapse = "\n")
     })
   })
+  observeEvent(input$blast_selected, {
+    selected_rows <- input$pcr_results_rows_selected
+    if (is.null(selected_rows) || length(selected_rows) == 0) {
+      output$blast_status <- renderText("No rows selected.")
+      return(NULL)
+    }
+    
+    all_data <- results()
+    fasta_store <- fasta_storage()
+    selected_ids <- all_data[selected_rows, "FASTA_ID"]
+    first_seq <- fasta_store[[selected_ids[1]]]
+    fasta_seq <- paste0(">Query\n", first_seq)
+    
+    output$blast_status <- renderText("Submitting to NCBI BLAST...")
+    
+    submit <- httr::POST(
+      url = "https://blast.ncbi.nlm.nih.gov/Blast.cgi",
+      body = list(
+        CMD = "Put",
+        PROGRAM = "blastn",
+        DATABASE = "nt",
+        QUERY = fasta_seq
+      ),
+      encode = "form"
+    )
+    
+    submit_text <- content(submit, "text")
+    if (!grepl("RID =", submit_text)) {
+      output$blast_status <- renderText("BLAST submission failed. Please try again.")
+      return(NULL)
+    }
+    
+    rid <- sub(".*RID = (\\w+).*", "\\1", submit_text)
+    output$blast_status <- renderText(paste("RID:", rid, "Polling NCBI for results..."))
+    
+    Sys.sleep(15)
+    
+    results_response <- httr::GET(
+      url = "https://blast.ncbi.nlm.nih.gov/Blast.cgi",
+      query = list(
+        CMD = "Get",
+        FORMAT_TYPE = "XML",
+        RID = rid
+      )
+    )
+    
+    raw_text <- content(results_response, as = "text", encoding = "UTF-8")
+    
+    # Check if content looks like XML
+    if (!grepl("^<\\?xml", raw_text)) {
+      output$blast_status <- renderText("NCBI returned non-XML output. BLAST failed.")
+      return(NULL)
+    }
+    
+    parsed <- tryCatch({
+      XML::xmlParse(raw_text)
+    }, error = function(e) {
+      output$blast_status <- renderText("BLAST XML parsing failed.")
+      return(NULL)
+    })
+    
+    if (is.null(parsed)) return(NULL)
+    
+    hits <- xpathSApply(parsed_xml, "//Hit", function(hit) {
+      get_safe <- function(node, tag) {
+        if (!is.null(node[[tag]])) xmlValue(node[[tag]]) else NA
+      }
+      
+      hsp <- hit[["Hit_hsps"]][["Hsp"]]
+      
+      data.frame(
+        Name = get_safe(hit, "Hit_def"),
+        Accession = get_safe(hit, "Hit_accession"),
+        Length = as.numeric(get_safe(hit, "Hit_len")),
+        Identity = as.numeric(get_safe(hsp, "Hsp_identity")),
+        AlignLen = as.numeric(get_safe(hsp, "Hsp_align-len")),
+        EValue = as.numeric(get_safe(hsp, "Hsp_evalue")),
+        stringsAsFactors = FALSE
+      )
+    })
+    if (length(hits) == 0 || all(sapply(hits, function(x) all(is.na(x))))) {
+      showModal(modalDialog("BLAST completed, but no significant hits were found.", easyClose = TRUE))
+      return()
+    }
+    
+    df_hits <- tryCatch({
+      df <- do.call(rbind, hits)
+      df$`% Identity` <- round(df$Identity / df$AlignLen * 100, 2)
+      df$Score <- sapply(df$`% Identity`, function(score) {
+        col <- if (score >= 95) '#28a745' else if (score >= 85) '#ffc107' else '#dc3545'
+        sprintf("<div style='background-color:%s;width:%s%%;padding:2px;color:white;border-radius:4px'>%s%%</div>", col, score, score)
+      })
+      df
+    }, error = function(e) {
+      cat("⚠️ Could not build hits data frame:", e$message, "\n")
+      NULL
+    })
+    
+    if (is.null(df_hits) || nrow(df_hits) == 0) {
+      showModal(modalDialog("BLAST returned no usable hits.", easyClose = TRUE))
+      return()
+    }
+    
+    
+    if (length(hits) == 0) {
+      output$blast_status <- renderText("No hits found in BLAST results.")
+      return(NULL)
+    }
+    
+    df <- do.call(rbind, lapply(hits, as.data.frame))
+    output$blast_results <- renderDT(df)
+    output$blast_status <- renderText("BLAST results retrieved successfully.")
+  })
   
+  observeEvent(input$blast_row, {
+    show_modal_spinner(text = "Running BLAST...")
+    
+    row_num <- as.numeric(sub("blast_", "", input$blast_row))
+    df <- results()
+    fasta_id <- df[row_num, "FASTA_ID"]
+    selected_seq <- fasta_storage()[[fasta_id]]
+    fasta_seq <- paste0(">Query\n", selected_seq)
+    
+    cat("🔍 Selected row:", row_num, "\n")
+    cat("🧬 FASTA ID:", fasta_id, "\n")
+    cat("🧬 Seq Preview:", substr(selected_seq, 1, 60), "\n")
+    
+    rid <- tryCatch({
+      resp <- httr::POST(
+        "https://blast.ncbi.nlm.nih.gov/Blast.cgi",
+        body = list(CMD = "Put", PROGRAM = "blastn", DATABASE = "nt", QUERY = fasta_seq),
+        encode = "form"
+      )
+      resp_txt <- httr::content(resp, "text", encoding = "UTF-8")
+      cat("📨 BLAST SUBMIT RESPONSE:\n", substr(resp_txt, 1, 300), "\n")
+      
+      if (grepl("RID =", resp_txt)) {
+        rid <- sub(".*RID = (\\w+).*", "\\1", resp_txt)
+        cat("✅ RID found:", rid, "\n")
+        rid
+      } else {
+        cat("❌ RID not found.\n")
+        NULL
+      }
+    }, error = function(e) {
+      cat("❌ ERROR submitting BLAST:", e$message, "\n")
+      NULL
+    })
+    
+    if (is.null(rid)) {
+      remove_modal_spinner()
+      showModal(modalDialog("BLAST submission failed. NCBI may be temporarily unavailable or rejecting the request.", easyClose = TRUE))
+      return()
+    }
+    
+    # ⏳ Wait for BLAST to process
+    # 🔁 Poll for BLAST XML result instead of static wait
+    blast_xml <- NULL
+    for (attempt in 1:12) {
+      cat(sprintf("⏳ Polling attempt %d for RID: %s...\n", attempt, rid))
+      Sys.sleep(5)  # Wait 5 seconds between attempts
+      
+      blast_xml <- tryCatch({
+        res <- httr::GET("https://blast.ncbi.nlm.nih.gov/Blast.cgi", query = list(
+          CMD = "Get", RID = rid, FORMAT_TYPE = "XML"
+        ))
+        raw <- httr::content(res, "text", encoding = "UTF-8")
+        cat("📥 BLAST XML response preview:\n", substr(raw, 1, 300), "\n")
+        raw
+      }, error = function(e) {
+        cat("❌ ERROR retrieving BLAST results:", e$message, "\n")
+        ""
+      })
+      
+      if (grepl("^<\\?xml", blast_xml)) {
+        cat("✅ XML successfully retrieved on attempt", attempt, "\n")
+        break
+      } else {
+        cat("⏳ Still waiting for BLAST result to be ready...\n")
+      }
+    }
+    
+    # 🚨 If no valid XML after polling, abort
+    if (!grepl("^<\\?xml", blast_xml)) {
+      remove_modal_spinner()
+      showModal(modalDialog("❌ BLAST job timed out or returned malformed data after multiple attempts.", easyClose = TRUE))
+      return()
+    }
+    
+    if (!grepl("^<\\?xml", blast_xml)) {
+      remove_modal_spinner()
+      showModal(modalDialog("BLAST returned non-XML data. Likely an error page due to overload or malformed request.", easyClose = TRUE))
+      return()
+    }
+    
+    parsed_xml <- tryCatch(XML::xmlParse(blast_xml), error = function(e) {
+      cat("❌ XML parse error:", e$message, "\n")
+      NULL
+    })
+    
+    if (is.null(parsed_xml)) {
+      remove_modal_spinner()
+      showModal(modalDialog("❌ Could not parse BLAST XML output.", easyClose = TRUE))
+      return()
+    }
+    
+    # Safely parse <Hit> nodes
+    hits <- xpathApply(parsed_xml, "//Hit", function(hit) {
+      safe_xml_value <- function(node, tag) {
+        val <- tryCatch(xmlValue(node[[tag]]), error = function(e) NA)
+        if (is.null(val) || val == "") NA else val
+      }
+      
+      hsp <- hit[["Hit_hsps"]][["Hsp"]]
+      if (is.null(hsp)) return(NULL)  # Skip hits with no HSP block
+      
+      data.frame(
+        Name      = safe_xml_value(hit, "Hit_def"),
+        Accession = safe_xml_value(hit, "Hit_accession"),
+        Length    = as.numeric(safe_xml_value(hit, "Hit_len")),
+        Identity  = as.numeric(safe_xml_value(hsp, "Hsp_identity")),
+        AlignLen  = as.numeric(safe_xml_value(hsp, "Hsp_align-len")),
+        EValue    = as.numeric(safe_xml_value(hsp, "Hsp_evalue")),
+        stringsAsFactors = FALSE
+      )
+    })
+    
+    # Remove NULLs and bind
+    hits <- hits[!sapply(hits, is.null)]
+    
+    if (length(hits) == 0) {
+      showModal(modalDialog("BLAST completed, but no usable hits were returned.", easyClose = TRUE))
+    } else {
+      df <- do.call(rbind, hits)
+      df$`% Identity` <- round(df$Identity / df$AlignLen * 100, 2)
+      
+      # Add colored score bars
+      df$Score <- sapply(df$`% Identity`, function(score) {
+        col <- if (score >= 95) '#28a745' else if (score >= 85) '#ffc107' else '#dc3545'
+        sprintf("<div style='background-color:%s;width:%s%%;padding:2px;color:white;border-radius:4px'>%s%%</div>", col, score, score)
+      })
+      
+      # Display modal
+      # Limit to top 5 hits by lowest EValue
+      top_hits <- df[order(df$EValue), ][1:min(5, nrow(df)), ]
+      
+      # Render modal with top hits
+      showModal(modalDialog(
+        title = "Top 5 BLAST Hits",
+        DT::renderDataTable({
+          datatable(top_hits[, c("Name", "Accession", "Length", "EValue", "% Identity", "Score")],
+                    escape = FALSE, rownames = FALSE, options = list(pageLength = 5))
+        }),
+        size = "l", easyClose = TRUE
+      ))
+    }
+    
+  })
+  
+
   output$download_selected_fasta <- downloadHandler(
     filename = function() {
       paste0("selected_pcr_products_", Sys.Date(), ".fasta")
