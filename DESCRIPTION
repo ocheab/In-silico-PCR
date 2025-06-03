@@ -18,7 +18,8 @@ Depends:
     shinyWidgets,
     DT,
     Biostrings,
-    readr
+    readr,
+    XML
 Suggests:
     knitr,
     rmarkdown
