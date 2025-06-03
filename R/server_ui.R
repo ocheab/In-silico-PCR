@@ -60,7 +60,7 @@ ui <- navbarPage(
              ),
              
              div(class = "home-container",
-                 img(src = "www/pcr.jpg", class = "home-logo"),
+                 img(src = "www/pcr.png", class = "home-logo"),
                  div(class = "home-header", "Welcome to the In Silico PCR Tool"),
                  div(class = "home-subtext", "Developed by the Centre for Malaria and Other Tropical Diseases Care, University of Ilorin Teaching Hospital"),
                  div(class = "home-highlight",
